@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-venuss-blue: #0084C9;
+  --color-venuss-blue-dark: #006CA5;
+  --color-venuss-blue-light: #2FA0E0;
+  --color-sapphire-deep: #072C42;
+  --color-sapphire-mid: #0A3B59;
+  --color-ice-bg: #F2F7FA;
+  --color-ice-card: #FFFFFF;
+  --color-navy-text: #0B2536;
+  --color-slate-muted: #1A3447;
+  --color-gold-accent: #E5A853;
+  --color-gold-dark: #C48A37;
+  
+  --font-serif: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Ensure strong contrast & legibility across all body, descriptive, and muted text */
+.text-\[\#456375\],
+[class*="text-[#456375]"] {
+  color: #162E3F !important;
+}
+
+p.font-light,
+span.font-light,
+div.font-light,
+li.font-light {
+  font-weight: 400 !important;
+}
+
+/* Custom Utilities for Luxury Glassmorphism & Micro-Interactions */
+@layer utilities {
+  .font-serif-editorial {
+    font-family: 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  }
+  .font-sans-ui {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  
+  /* Premium Glass Bay Effects */
+  .glass-bay {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(242, 247, 250, 0.7) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 132, 201, 0.18);
+    box-shadow: 0 12px 36px -10px rgba(7, 44, 66, 0.08);
+  }
+
+  .glass-bay-dark {
+    background: linear-gradient(135deg, rgba(10, 59, 89, 0.9) 0%, rgba(7, 44, 66, 0.95) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(47, 160, 224, 0.25);
+    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-card-hover {
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .glass-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px rgba(0, 132, 201, 0.2);
+    border-color: rgba(0, 132, 201, 0.4);
+  }
+
+  .blue-glow {
+    box-shadow: 0 0 35px rgba(0, 132, 201, 0.3);
+  }
+
+  .gold-glow {
+    box-shadow: 0 0 25px rgba(229, 168, 83, 0.3);
+  }
+}
+
+/* Smooth Scrollbar in Ice Blue */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F2F7FA;
+}
+::-webkit-scrollbar-thumb {
+  background: #0084C9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #006CA5;
+}
