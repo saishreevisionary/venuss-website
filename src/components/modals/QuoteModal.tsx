@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, CheckCircle2, ShieldCheck, Loader2, MessageSquare, Mail } from 'lucide-react';
+import { X, Send, CheckCircle2, ShieldCheck, Loader2, MessageSquare, Mail, AlertCircle } from 'lucide-react';
 import { PRODUCTS } from '../../data/products';
 import { COMPANY_INFO } from '../../data/company';
 
@@ -23,6 +23,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSubmittedData, setLastSubmittedData] = useState<{
     productName: string;
     name: string;
@@ -65,6 +66,7 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
 
     const submissionPayload = {
       productName: currentProductName,
@@ -76,55 +78,79 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
       message: formData.message,
     };
 
-    // 1. Submit to Formspree / Web3Forms endpoint for live email delivery
+    const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
+
     try {
-      await fetch('https://formspree.io/f/xbjvlwrk', {
+      if (!accessKey || accessKey.trim() === '' || accessKey === 'your_web3forms_access_key_here') {
+        throw new Error('Web3Forms Access Key is not configured. Please add your key to the .env file (VITE_WEB3FORMS_ACCESS_KEY).');
+      }
+
+      // Submit to Web3Forms API
+      const response = await fetch('https://api.web3forms.com/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          subject: `B2B Quotation Request: ${currentProductName} from ${formData.company}`,
-          ...submissionPayload,
-          factoryEmail: COMPANY_INFO.contact.emailGeneral,
+          access_key: accessKey,
+          subject: `🌿 New Quotation Request: ${currentProductName} from ${formData.company}`,
+          from_name: 'Venuss Inquiry Portal',
+          replyto: formData.email,
+          'Product Requested': currentProductName,
+          'Customer Name': formData.name,
+          'Company / Organization': formData.company,
+          'Business Email': formData.email,
+          'Phone / WhatsApp': formData.phone,
+          'Requirement Quantity': formData.quantity,
+          'Specifications / Application Notes': formData.message || 'Standard B2B Specification',
+          botcheck: '',
         }),
-      }).catch(() => {
-        // Fallback gracefully even if network or adblocker interrupts external API
       });
-    } catch {
-      // Ignore network errors to guarantee uninterrupted user flow
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to dispatch quotation request. Please verify your access key.');
+      }
+
+      // Persist locally to localStorage so records are preserved in browser
+      try {
+        const existingInquiries = JSON.parse(localStorage.getItem('venuss_inquiries') || '[]');
+        const newInquiry = {
+          id: `INQ-${Date.now()}`,
+          ...submissionPayload,
+          submittedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('venuss_inquiries', JSON.stringify([newInquiry, ...existingInquiries]));
+      } catch {
+        // Ignore localStorage errors
+      }
+
+      // Retain a copy for the confirmation action screen
+      setLastSubmittedData(submissionPayload);
+
+      // Immediately automatically reset the form inputs back to blank
+      setFormData(INITIAL_FORM_STATE);
+      setIsSubmitted(true);
+    } catch (err: unknown) {
+      console.error('Inquiry transmission failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unable to transmit quotation request. Please check connection or try WhatsApp.';
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // 2. Persist locally to localStorage so records are preserved in browser
-    try {
-      const existingInquiries = JSON.parse(localStorage.getItem('venuss_inquiries') || '[]');
-      const newInquiry = {
-        id: `INQ-${Date.now()}`,
-        ...submissionPayload,
-        submittedAt: new Date().toISOString(),
-      };
-      localStorage.setItem('venuss_inquiries', JSON.stringify([newInquiry, ...existingInquiries]));
-    } catch {
-      // Ignore localStorage errors
-    }
-
-    // Retain a copy for the confirmation action screen
-    setLastSubmittedData(submissionPayload);
-
-    // 3. Immediately automatically reset the form inputs back to blank
-    setFormData(INITIAL_FORM_STATE);
-    setIsSubmitting(false);
-    setIsSubmitted(true);
   };
 
   const handleClose = () => {
     setIsSubmitted(false);
     setIsSubmitting(false);
+    setSubmitError(null);
     setFormData(INITIAL_FORM_STATE);
     setLastSubmittedData(null);
     onClose();
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#072C42]/75 backdrop-blur-md animate-fadeIn">
@@ -218,9 +244,42 @@ export const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, initial
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              
+              {/* Anti-spam honeypot */}
+              <input type="checkbox" name="botcheck" className="hidden" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
+
+              {/* Error Alert */}
+              {submitError && (
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-start gap-2.5 animate-fadeIn">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold">{submitError}</p>
+                    <p className="text-[11px] text-red-700">
+                      Need immediate assistance? Connect via{' '}
+                      <a
+                        href={generateWhatsAppLink({
+                          productName: currentProductName,
+                          name: formData.name,
+                          company: formData.company,
+                          email: formData.email,
+                          phone: formData.phone,
+                          quantity: formData.quantity,
+                          message: formData.message,
+                        })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-bold text-emerald-800"
+                      >
+                        Direct WhatsApp Chat
+                      </a>{' '}
+                      or call +91 77080 01856.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Product Selection */}
               <div>
+
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#0084C9] mb-1.5">
                   Select Botanical Ingredient *
                 </label>
